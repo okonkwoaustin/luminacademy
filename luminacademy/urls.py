@@ -24,7 +24,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", home, name="home"),
     path("api/v1/", include("api.urls")),
-    path('dj-rest-auth/register/', include('dj_rest_auth.registration.urls')),
+    #path('dj-rest-auth/register/', include('dj_rest_auth.registration.urls')),
     path('dj-rest-auth/', include('dj_rest_auth.urls')),
 
     # drf-spectacular url conf
