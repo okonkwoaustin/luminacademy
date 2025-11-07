@@ -2,28 +2,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lumin Academy API</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="{% static 'images/favicon.ico' %}">
 </head>
-<body class="bg-gray-50 flex flex-col items-center justify-center min-h-screen text-center p-6">
-  <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-600 mb-4">Lumin Academy</h1>
-  <p class="text-lg md:text-xl text-gray-700 mb-8">Brightening Minds, One Course at a Time.</p>
 
-  <div class="space-x-4">
-    <a href="{% url 'swagger-ui' %}"
-       class="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg shadow hover:bg-indigo-700 transition">
-       Swagger UI
-    </a>
-    <a href=""
-       class="inline-block bg-gray-800 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-900 transition">
-       Redoc
-    </a>
-  </div>
+<body class="bg-gradient-to-br from-gray-50 via-white to-indigo-50 min-h-screen flex flex-col">
 
-  <footer class="mt-10 text-gray-500 text-sm">
-    &copy; {{ year }} Lumin Academy
+  <!-- Navbar -->
+  <nav class="w-full bg-white shadow-sm py-4 px-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-indigo-700">Lumin Academy API</h1>
+    <div class="space-x-4">
+      <a href="{% url 'swagger-ui' %}" 
+         class="text-indigo-600 font-medium hover:text-indigo-800 transition">Swagger UI</a>
+      <a href="{% url 'redoc' %}" 
+         class="text-gray-700 font-medium hover:text-gray-900 transition">Redoc</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <main class="flex-grow flex flex-col justify-center items-center text-center px-6 py-10">
+    <h2 class="text-4xl md:text-5xl font-extrabold text-indigo-600 mb-4">Welcome to Lumin Academy API</h2>
+    <p class="text-lg md:text-xl text-gray-700 max-w-2xl mb-8">
+      Powering the next generation of digital learning — a RESTful API built with Django and DRF.
+      Explore the endpoints, authenticate users, and manage courses with ease.
+    </p>
+
+    <div class="flex flex-wrap justify-center gap-4">
+      <a href="{% url 'swagger-ui' %}"
+         class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow hover:bg-indigo-700 transition transform hover:scale-105">
+         🔍 Open Swagger Docs
+      </a>
+      <a href="{% url 'redoc' %}"
+         class="bg-gray-800 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-900 transition transform hover:scale-105">
+         📘 View Redoc Docs
+      </a>
+    </div>
+  </main>
+
+  <!-- Features Section -->
+  <section class="bg-white py-12 px-6 md:px-20 text-center border-t">
+    <h3 class="text-2xl font-semibold text-indigo-700 mb-8">Key API Features</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="p-6 bg-indigo-50 rounded-xl shadow-sm hover:shadow-md transition">
+        <h4 class="text-lg font-bold text-indigo-700 mb-2">🔐 User Authentication</h4>
+        <p class="text-gray-600">Secure JWT-based login, registration, and password reset for users.</p>
+      </div>
+      <div class="p-6 bg-indigo-50 rounded-xl shadow-sm hover:shadow-md transition">
+        <h4 class="text-lg font-bold text-indigo-700 mb-2">📚 Course Management</h4>
+        <p class="text-gray-600">Create, view, and manage courses with instructor-based permissions.</p>
+      </div>
+      <div class="p-6 bg-indigo-50 rounded-xl shadow-sm hover:shadow-md transition">
+        <h4 class="text-lg font-bold text-indigo-700 mb-2">🚀 Developer Friendly</h4>
+        <p class="text-gray-600">Clean, well-documented endpoints with DRF’s browsable interface.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-100 text-gray-600 text-sm py-6 text-center">
+    <p>&copy; {{ year }} <span class="font-semibold text-indigo-700">Lumin Academy</span>. All rights reserved.</p>
+    <p class="mt-1">Built with ❤️ using Django & Django REST Framework.</p>
   </footer>
+
 </body>
 </html>
