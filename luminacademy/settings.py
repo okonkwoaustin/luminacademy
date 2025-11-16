@@ -57,6 +57,8 @@ INSTALLED_APPS = [
     # Local Apps
     "accounts",
     "courses",
+    "assessments",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -102,6 +104,16 @@ DATABASES = {
     }
 }
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.mysql"),
+#         "NAME": os.getenv("DB_NAME"),
+#         "USER": os.getenv("DB_USER"),
+#         "PASSWORD": os.getenv("DB_PASSWORD"),
+#         "HOST": os.getenv("DB_HOST"),
+#         "PORT": os.getenv("DB_PORT"),
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -159,18 +171,19 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
-    ),    
+    ),  
+    'EXCEPTION_HANDLER': 'api.utils.exceptions.custom_exception_handler',  
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 5,
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=3),
+SMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-#ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # no username field
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # no username field
 #ACCOUNT_EMAIL_REQUIRED = True
 #ACCOUNT_USERNAME_REQUIRED = False
 #ACCOUNT_AUTHENTICATION_METHOD = 'email'
@@ -182,8 +195,16 @@ SITE_ID = 1
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    'REGISTER_SERIALIZER': 'api.serializers.CustomRegisterSerializer',
+    'LOGIN_SERIALIZER': 'api.serializers.CustomLoginSerializer',
+}
+
 REST_AUTH_REGISTER_SERIALIZERS = {
-    "REGISTER_SERIALIZER": "api.serializers.RegisterSerializer"
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer"
 }
 
 SPECTACULAR_SETTINGS = {

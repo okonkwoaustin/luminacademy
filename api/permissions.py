@@ -13,12 +13,18 @@ class IsInstructor(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == "instructor"
+    
+    def has_object_permission(self, request, view, obj):
+        return request.user.is_authenticated and request.user.role == "instructor"
 
 
 class IsStudent(permissions.BasePermission):
     """Allow access only to students."""
 
     def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == "student" 
+    
+    def has_object_permission(self, request, view, obj):
         return request.user.is_authenticated and request.user.role == "student"
 
 
@@ -26,6 +32,11 @@ class IsInstructorOrAdmin(permissions.BasePermission):
     """Allow instructors or admins to modify content."""
 
     def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.role in ["instructor", "admin"]
+        )
+    def has_object_permission(self, request, view, obj):
         return (
             request.user.is_authenticated
             and request.user.role in ["instructor", "admin"]
@@ -86,7 +97,20 @@ class IsStudentOrInstructorOrAdmin(permissions.BasePermission):
             and request.user.role in ["student", "instructor", "admin"]
         )
 
+class IsAdminOrOwnerOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # SAFE methods: GET, HEAD, OPTIONS
+        if request.method in permissions.SAFE_METHODS:
+            return True
 
+        # Admin can modify
+        if request.user.role == "admin" or request.user.is_superuser:
+            return True
+
+        # Instructor can modify only their own course
+        return obj.owner == request.user
+    
+    
 class IsEnrollmentOwnerOrCourseInstructorOrAdmin(permissions.BasePermission):
     """Object-level permission for Enrollment objects.
 

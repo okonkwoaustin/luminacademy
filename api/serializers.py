@@ -2,6 +2,10 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer as JwtTokenObtainPairSerializers
 from accounts.models import UserProfile
 from courses.models import Course, Lesson, Module, Enrollment
+from django.contrib.auth import authenticate
+from dj_rest_auth.serializers import LoginSerializer
+from dj_rest_auth.registration.serializers import RegisterSerializer
+from assessments.models import Quiz, Question, Submission
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -19,34 +23,63 @@ class TokenObtainPairSerializer(JwtTokenObtainPairSerializers):
         })
         return data
 
-
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
-    username = None
-
-    class Meta:
-        model = User
-        fields = ("email", "password", "role", "bio", "profile_picture",)
+class CustomRegisterSerializer(RegisterSerializer):
+    username = None 
+    email = serializers.EmailField(required=True)
+    first_name = serializers.CharField(required=True, max_length=30)
+    last_name = serializers.CharField(required = True, max_length=30)
+    phone_number = serializers.CharField(required=False, max_length=20)
+    role = serializers.ChoiceField(choices=User.Roles.choices, default=User.Roles.STUDENT)
 
     def validate_email(self, value):
-        """
-        Ensure the email is unique before creating the user.
-        """
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email already exists")
+            raise serializers.ValidationError("An account with this email already exists.")
         return value
 
+    def validate_phone_number(self, value):
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("An account with this phone number already exists.")
+        return value
 
-    def create(self, validated_data):
+    def get_cleaned_data(self):
+        """Override to clean only fields that exist."""
+        return {
+            'email': self.validated_data.get('email', ''),
+            'password1': self.validated_data.get('password1', ''),
+            'first_name': self.validated_data.get('first_name', ''),
+            'last_name': self.validated_data.get('last_name', ''),
+            'phone_number': self.validated_data.get('phone_number', ''),
+            'role': self.validated_data.get('role', User.Roles.STUDENT)
+        }
+    
+    def save(self, request):
         user = User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            role =validated_data.get("role", User.Roles.STUDENT),
-            bio=validated_data.get("bio", ""),
-            profile_picture=validated_data.get("profile_picture"),
+            email=self.validated_data["email"],
+            first_name=self.validated_data["first_name"],
+            last_name=self.validated_data["last_name"],
+            password=self.validated_data["password1"],
+            phone_number=self.validated_data.get("phone_number", ""),
+            role =self.validated_data.get("role", User.Roles.STUDENT),
         )
         return user
 
+class CustomLoginSerializer(LoginSerializer):
+    """Custom login serializer that uses email field instead of username."""
+    username = None
+
+    # Make email or phone field required
+    email_or_phone = serializers.CharField(required=True)
+
+    def authenticate(self, **kwargs):
+        email_or_phone = self.validated_data.get('email_or_phone')
+        password = self.validated_data.get('password')
+
+        user = authenticate(
+            self.context['request'],
+            username=email_or_phone,
+            password=password,
+        )
+        return user
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
@@ -108,10 +141,25 @@ class ModuleSerializer(serializers.ModelSerializer):
 
 class CourseSerializer(serializers.ModelSerializer):
     modules = ModuleSerializer(many=True, read_only=True)
-    instructor = serializers.StringRelatedField()
     class Meta:
         model = Course
-        fields = ("id", "title", "slug", "description", "instructor", "published", "modules",)
+        fields = (
+            "id", 
+            "title", 
+            "slug", 
+            "description", 
+            "category", 
+            "price", 
+            "owner", 
+            "published", 
+            "modules",
+    )
+    read_only_fields = ['owner']
+        
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['owner'] = user
+        return super().create(validated_data)
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     student = serializers.StringRelatedField()
@@ -119,3 +167,40 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Enrollment
         fields = ('id', 'student', 'course', 'progress', 'completed',)
+
+
+class QuizSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Quiz
+        fields = ('id', 'course', 'title', 'description', 'duration', 'total_marks', 'created_at', 'updated_at',)
+
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = (
+            'id', 
+            'quiz', 
+            'text', 
+            'option_a', 
+            'option_b', 
+            'option_c', 
+            'option_d', 
+            'correct_answer', 
+            'marks', 
+            'created_at', 
+            'updated_at',
+        )
+
+class SubmissionSerializer(serializers.ModelSerializer):
+    student = serializers.StringRelatedField()
+    quiz = serializers.StringRelatedField()
+    class Meta:
+        model = Submission
+        fields = (
+            'id', 
+            'quiz', 
+            'student', 
+            'total_marks_obtained', 
+            'submitted_at', 
+            'is_graded',
+        )

@@ -19,13 +19,21 @@ from django.contrib import admin
 from django.urls import path, include
 from courses.views import home
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", home, name="home"),
     path("api/v1/", include("api.urls")),
-    #path('dj-rest-auth/register/', include('dj_rest_auth.registration.urls')),
+    path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     path('dj-rest-auth/', include('dj_rest_auth.urls')),
+
+    # JWT Authentication URLs
+    path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # drf-spectacular url conf
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -3,13 +3,14 @@ from rest_framework import routers
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
-    RegisterView,
     UserViewSet,
-    EmailTokenObtainPairView,
     CourseViewSet,
     LessonViewSet,
     ModuleViewSet,
     EnrollmentViewSet,
+    QuizViewSet,
+    QuestionViewSet,
+    SubmissionViewSet,
 )
 
 router = routers.DefaultRouter()
@@ -18,13 +19,12 @@ router.register(r"courses", CourseViewSet, basename="course")
 router.register(r"modules", ModuleViewSet, basename="module")
 router.register(r"lessons", LessonViewSet, basename="lesson")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
+router.register(r"quizzes", QuizViewSet, basename="quiz")
+router.register(r"questions", QuestionViewSet, basename="question")
+router.register(r"submissions", SubmissionViewSet, basename="submission")
 
 
-urlpatterns = [    
-    path('register/', RegisterView.as_view(), name='token_obtain_pair'),
-    path("token/login/", EmailTokenObtainPairView.as_view(), name="login"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-
+urlpatterns = [
     # Course Urls
     path("", include(router.urls)),
 ]

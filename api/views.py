@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 from rest_framework.decorators import action
 from courses.models import Lesson, Module, Course, Enrollment
+from assessments.models import Quiz, Question, Submission
 from .permissions import (
     IsAdmin,
     IsInstructor,
@@ -11,46 +12,27 @@ from .permissions import (
     IsAdminOrInstructorOrStudent,
     IsStudentOrInstructorOrAdmin,
     IsEnrollmentOwnerOrCourseInstructorOrAdmin,
+    IsAdminOrOwnerOrReadOnly,
 )
 from .serializers import (
     UserSerializer,
-    TokenObtainPairSerializer,
-    RegisterSerializer,
     LessonSerializer,
     ModuleSerializer,
     CourseSerializer,
     EnrollmentSerializer,
+    QuizSerializer,
+    QuestionSerializer,
+    SubmissionSerializer,
 )
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets, permissions
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import generics
 from django_filters import rest_framework as filtering
 from rest_framework import filters
 from django.contrib.auth import get_user_model
+from .utils.response import ResponseFormatter
 User = get_user_model()
-
-
-class RegisterView(generics.CreateAPIView):
-    permission_classes = [permissions.AllowAny]
-    serializer_class = RegisterSerializer
-    queryset = User.objects.all()
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            {
-                "message": "User registered successfully",
-                "user": UserSerializer(user).data,
-            },
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
-
 
 class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrSelf]
@@ -59,22 +41,83 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = [filtering.DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['email', 'role', 'is_active']
     search_fields = ['email', 'first_name', 'last_name']
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == "admin":
+            return User.objects.all()
+        return User.objects.filter(id=user.id)
+    
+    def destroy(self, request, *args, **kwargs):
+        user = User.all_objects.get(pk=kwargs["pk"])
+        user.delete()  # soft delete
 
-
-class EmailTokenObtainPairView(TokenObtainPairView):
-    serializer_class = TokenObtainPairSerializer
-
+        return Response(
+            {"message": "User soft deleted successfully."},
+            status=status.HTTP_200_OK
+        )
 
 class CourseViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminOrInstructorOrStudent, IsOwnerOrReadOnly, ]
+    permission_classes = [IsAdminOrOwnerOrReadOnly]
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     filter_backends = [filtering.DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['instructor__email', 'title']
-    search_fields = ['title', 'description', 'instructor__email']
+    filterset_fields = ['owner__email', 'title']
+    search_fields = ['title', 'description', 'owner__email']
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "admin" or user.is_superuser:
+            return Course.objects.all()
+
+        if user.role == "instructor":
+            return Course.objects.filter(owner=user)
+
+        # students will see all courses
+        return Course.objects.all()
 
     def perform_create(self, serializer):
-        serializer.save(instructor=self.request.user)
+        serializer.save(owner=self.request.user)
+        
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(instructor=request.user)
+            return ResponseFormatter.success(
+                message="Course created successfully!",
+                data=serializer.data,
+                status_code=status.HTTP_201_CREATED
+            )
+        return ResponseFormatter.error(
+            message="Only instructors and admins can create courses.",
+            errors=serializer.errors
+        )
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return ResponseFormatter.success(
+                message="Course updated successfully!",
+                data=serializer.data
+            )
+        return ResponseFormatter.error(
+            message="Failed to update course.",
+            errors=serializer.errors
+        )
+
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return ResponseFormatter.success(
+            message="Course deleted successfully!",
+            data=None,
+            status_code=status.HTTP_204_NO_CONTENT
+        )
+   
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def enroll(self, request, pk=None):
@@ -224,3 +267,53 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 
         serializer = EnrollmentSerializer(enrollments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class QuizViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminOrInstructorOrStudent, IsOwnerOrReadOnly]
+    queryset = Quiz.objects.all()
+    serializer_class = QuizSerializer
+    filter_backends = [filtering.DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['course__title', 'title']
+    search_fields = ['title', 'description', 'course__title']
+
+    def perform_create(self, serializer):
+        course_id = self.request.data.get("course")
+        course = generics.get_object_or_404(Course, id=course_id)
+        if course.instructor != self.request.user and self.request.user.role != "admin":
+            raise permissions.PermissionDenied(
+                "You do not have permission to add quizzes to this course.")
+        serializer.save(course=course)
+
+class QuestionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminOrInstructorOrStudent, IsOwnerOrReadOnly]
+    queryset = Question.objects.all()
+    serializer_class = QuestionSerializer
+    filter_backends = [filtering.DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['quiz__title']
+    search_fields = ['text', 'quiz__title']
+
+    def perform_create(self, serializer):
+        quiz_id = self.request.data.get("quiz")
+        quiz = generics.get_object_or_404(Quiz, id=quiz_id)
+        if quiz.course.instructor != self.request.user and self.request.user.role != "admin":
+            raise permissions.PermissionDenied(
+                "You do not have permission to add questions to this quiz.")
+        serializer.save(quiz=quiz)
+
+class SubmissionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminOrInstructorOrStudent, IsOwnerOrReadOnly]
+    queryset = Submission.objects.all()
+    serializer_class = SubmissionSerializer
+    filter_backends = [filtering.DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['quiz__title', 'student__email']
+    search_fields = ['quiz__title', 'student__email']
+
+    def perform_create(self, serializer):
+        quiz_id = self.request.data.get("quiz")
+        quiz = generics.get_object_or_404(Quiz, id=quiz_id)
+        user = self.request.user
+        if user.role != "student":
+            raise permissions.PermissionDenied(
+                "Only students can submit quizzes.")
+        serializer.save(quiz=quiz, student=user)

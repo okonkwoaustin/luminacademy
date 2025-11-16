@@ -6,7 +6,7 @@ from .models import CustomUser
 class EmailUserAdmin(UserAdmin):
     model = CustomUser
     ordering = ['email']
-    list_display = ['email', 'first_name', 'last_name', 'is_staff']
+    list_display = ['email', 'first_name', 'last_name', 'is_staff', 'role']
     list_filter = ['is_staff', 'is_superuser', 'is_active']
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -23,3 +23,4 @@ class EmailUserAdmin(UserAdmin):
     search_fields = ('email',)
 
 admin.site.register(CustomUser, EmailUserAdmin)
+
