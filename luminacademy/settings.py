@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
+from dotenv import load_dotenv
+load_dotenv(verbose=True)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,10 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-krxmz4n_0@62#704vcayyds^agtt=(1_f3&dqf^#exnihbstw2"
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG")
 
 ALLOWED_HOSTS = []
 
@@ -39,10 +42,23 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Local Apps
+    # Third party apps
     "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
+    "drf_spectacular",
+    'dj_rest_auth',
+    "dj_rest_auth.registration",
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    "django_filters",
+
+    # Local Apps
     "accounts",
     "courses",
+    "assessments",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -53,6 +69,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    
+    # Add the account middleware:
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "luminacademy.urls"
@@ -85,6 +104,16 @@ DATABASES = {
     }
 }
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.mysql"),
+#         "NAME": os.getenv("DB_NAME"),
+#         "USER": os.getenv("DB_USER"),
+#         "PASSWORD": os.getenv("DB_PASSWORD"),
+#         "HOST": os.getenv("DB_HOST"),
+#         "PORT": os.getenv("DB_PORT"),
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -126,3 +155,61 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# My Configurations
+AUTH_USER_MODEL = 'accounts.CustomUser'
+
+AUTHENTICATION_BACKENDS = ['accounts.auth_backends.EmailBackend']
+
+# REST Framework
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+    ),  
+    'EXCEPTION_HANDLER': 'api.utils.exceptions.custom_exception_handler',  
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 5,
+}
+
+SMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # no username field
+#ACCOUNT_EMAIL_REQUIRED = True
+#ACCOUNT_USERNAME_REQUIRED = False
+#ACCOUNT_AUTHENTICATION_METHOD = 'email'
+# Custom user model
+AUTH_USER_MODEL = "accounts.CustomUser"
+SITE_ID = 1
+
+# Allauth new settings
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    'REGISTER_SERIALIZER': 'api.serializers.CustomRegisterSerializer',
+    'LOGIN_SERIALIZER': 'api.serializers.CustomLoginSerializer',
+}
+
+REST_AUTH_REGISTER_SERIALIZERS = {
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer"
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LuminAcademy API',
+    'DESCRIPTION': 'Brightening Minds, One Course at a Time.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
